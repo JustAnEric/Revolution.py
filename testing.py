@@ -17,4 +17,4 @@ async def server_message(server, message):
     if str(message['message']).lower() == "hi":
         return await bot.send_message(server, "Hello!")
 
-asyncio.get_event_loop().run_until_complete(bot.run("L78q92", ["revolution"]))
+asyncio.get_event_loop().run_until_complete(bot.run("L78q92", "revolution"))

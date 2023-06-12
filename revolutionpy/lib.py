@@ -35,14 +35,14 @@ class BotApplication():
         self.bot = {
             "name": "Bot"
         }
-    async def run(self, token, in_servers=[]):
+    async def run(self, token, in_server=""):
         self.token = token
         self.invoked = True
-        self.watching_servers = in_servers
+        self.watching_servers = in_server
         if token == None or token == "": return print(f"{Color.FAIL}revolution.bot.run.error{Color.ENDC}{Color.NORMAL_SPACE}{Color.WARNING}Bot cannot run: token has not been set correctly.{Color.ENDC}")
         request = RequestHandler(Request("http://revolution.ericplayzyt.repl.co/api/v1/python/token_exists", "GET", headers={"token": token}).request(), RequestType.GET, "json").c()
         if request['token_exists'] == "false": return print(f"{Color.FAIL}revolution.bot.run.error{Color.ENDC}{Color.NORMAL_SPACE}{Color.WARNING}Bot cannot run: token has not been set correctly. (NO TOKEN FOUND IN DB){Color.ENDC}")
-        print(f"{Color.OKCYAN}revolution.bot.api{Color.ENDC}{Color.NORMAL_SPACE}   {Color.OKGREEN}Hosting bot to servers: {Color.ENDC}{Color.OKBLUE}{in_servers}{Color.ENDC}")
+        print(f"{Color.OKCYAN}revolution.bot.api{Color.ENDC}{Color.NORMAL_SPACE}   {Color.OKGREEN}Hosting bot to servers: {Color.ENDC}{Color.OKBLUE}{in_server}{Color.ENDC}")
         try: await self.events['ready']()
         except Exception as e: print(e)
         pingrequest = PingRequest("https://revolution.ericplayzyt.repl.co/api/v1/python/ping_bot_online", RequestType.GET)

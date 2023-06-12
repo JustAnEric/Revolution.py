@@ -26,7 +26,7 @@ async def server_message(server, message):
 asyncio.get_event_loop().run_until_complete(
     bot.run(
         "L78q92", # token
-        ["revolution"] # guild ids
+        "revolution" # guild id
     )
-) # insert your token and guild ids to invoke the bot to. The bot will not be given editing permissions unless the owner of the server gives it permission.
+) # insert your token and guild id to invoke the bot to. The bot will not be given editing permissions unless the owner of the server gives it permission.
 ```
