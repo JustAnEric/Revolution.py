@@ -15,13 +15,18 @@ bot.setup(
 
 @bot.event
 async def ready():
-    print(bot.get())
-    print(bot.get_server("revolution"))
+    print(bot.get()) # gets the bot instance (JSON)
+    print(bot.get_server("revolution")) # prints json of server information
 
 @bot.event
 async def server_message(server, message):
     if str(message['message']).lower() == "hi":
-        return await bot.send_message(server, "Hello!")
+        return await bot.send_message(server, "Hello!") # sends a message to the following server by ID.
 
-asyncio.get_event_loop().run_until_complete(bot.run("L78q92", ["revolution"])) # insert your token
+asyncio.get_event_loop().run_until_complete(
+    bot.run(
+        "L78q92", # token
+        ["revolution"] # guild ids
+    )
+) # insert your token and guild ids to invoke the bot to. The bot will not be given editing permissions unless the owner of the server gives it permission.
 ```
