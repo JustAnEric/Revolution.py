@@ -53,7 +53,7 @@ class PingRequest():
             "method": request_method
         }
     
-    async def request(self, time=0):
+    async def request(self, time=0, afterEach=None):
         while True:
             if str(self.request_.get("method")).upper() == "GET":
                 resp = requests.get(self.request_.get("url"))
@@ -63,6 +63,5 @@ class PingRequest():
                 resp = requests.put(self.request_.get("url"))
             if str(self.request_.get("method")).upper() == "DELETE":
                 resp = requests.delete(self.request_.get("url"))
-
-            print(f"[Pinging] Response received: {resp.json()}")
+            await afterEach()
             await asyncio.sleep(time)

@@ -1,17 +1,20 @@
 from revolutionpy import main, lib
 import asyncio
 
-#request = main.RequestHandler(main.Request("http://api.ipify.org/?format=json", "GET").request(), main.RequestType.GET, "json").c()['ip']
-#print(request)
-#pingrequest = main.PingRequest("http://api.ipify.org/?format=json", main.RequestType.GET)
-#asyncio.run(pingrequest.request(5))
-
 bot = lib.commands().Bot()
 
 bot.setup(
-    name = "Bot"
+    name = "Cool Bot"
 )
 
-print(bot.get())
+@bot.event
+async def ready():
+    print(bot.get())
+    print(bot.get_server("revolution"))
 
-bot.run("L78q92", [])
+@bot.event
+async def server_message(server, message):
+    if str(message['message']).lower() == "hi":
+        return await bot.send_message(server, "Hello!")
+
+asyncio.get_event_loop().run_until_complete(bot.run("L78q92", ["revolution"]))
