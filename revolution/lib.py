@@ -1,4 +1,4 @@
-import asyncio, logging, termcolor
+import asyncio, logging
 from .main import *
 
 class Color:
