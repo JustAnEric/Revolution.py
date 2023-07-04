@@ -1,4 +1,4 @@
-from revolution_py import main, lib
+from revolution import main, lib
 import asyncio
 
 bot = lib.commands().Bot()
