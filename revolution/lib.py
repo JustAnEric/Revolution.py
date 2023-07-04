@@ -19,7 +19,7 @@ class commands:
     
     def Bot(self):
         print(f"{Color.OKCYAN}revolution.bot.checks{Color.ENDC}   {Color.WARNING}Checking for valid internet...{Color.ENDC}")
-        request = RequestHandler(Request("http://revolution.ericplayzyt.repl.co/api/v1/internet", "GET").request(), RequestType.GET, "json").c()['hasInternet']
+        request = RequestHandler(Request("http://revolution-web.repl.co/api/v1/internet", "GET").request(), RequestType.GET, "json").c()['hasInternet']
         if request == "false":
             print(f"{Color.OKCYAN}revolution.bot.checks{Color.ENDC}{Color.NORMAL_SPACE}{Color.FAIL}You have no internet connection or your router or proxy is not allowing this site to be accessed. Please try again.{Color.ENDC}")
         if request == "true":
@@ -40,12 +40,12 @@ class BotApplication():
         self.invoked = True
         self.watching_servers = in_server
         if token == None or token == "": return print(f"{Color.FAIL}revolution.bot.run.error{Color.ENDC}{Color.NORMAL_SPACE}{Color.WARNING}Bot cannot run: token has not been set correctly.{Color.ENDC}")
-        request = RequestHandler(Request("http://revolution.ericplayzyt.repl.co/api/v1/python/token_exists", "GET", headers={"token": token}).request(), RequestType.GET, "json").c()
+        request = RequestHandler(Request("http://revolution-web.repl.co/api/v1/python/token_exists", "GET", headers={"token": token}).request(), RequestType.GET, "json").c()
         if request['token_exists'] == "false": return print(f"{Color.FAIL}revolution.bot.run.error{Color.ENDC}{Color.NORMAL_SPACE}{Color.WARNING}Bot cannot run: token has not been set correctly. (NO TOKEN FOUND IN DB){Color.ENDC}")
         print(f"{Color.OKCYAN}revolution.bot.api{Color.ENDC}{Color.NORMAL_SPACE}   {Color.OKGREEN}Hosting bot to servers: {Color.ENDC}{Color.OKBLUE}{in_server}{Color.ENDC}")
         try: await self.events['ready']()
         except Exception as e: print(e)
-        pingrequest = PingRequest("https://revolution.ericplayzyt.repl.co/api/v1/python/ping_bot_online", RequestType.GET)
+        pingrequest = PingRequest("https://revolution-web.repl.co/api/v1/python/ping_bot_online", RequestType.GET)
         await pingrequest.request(0.5, self.after_each_request)
     
     def get(self):
@@ -59,8 +59,8 @@ class BotApplication():
     def get_server(self, id):
         if id not in self.watching_servers: return print(f"{id} SERVER IS NOT BEING WATCHED! ADD IT TO THE WATCH LIST.")
         if self.invoked:
-            request = RequestHandler(Request("http://revolution.ericplayzyt.repl.co/api/v1/get_server_messages", "GET", headers={"id": id}).request(), RequestType.GET, "json").c()
-            request2 = RequestHandler(Request("http://revolution.ericplayzyt.repl.co/api/v1/get_server", "GET", headers={"id": id}).request(), RequestType.GET, "json").c()
+            request = RequestHandler(Request("http://revolution-web.repl.co/api/v1/get_server_messages", "GET", headers={"id": id}).request(), RequestType.GET, "json").c()
+            request2 = RequestHandler(Request("http://revolution-web.repl.co/api/v1/get_server", "GET", headers={"id": id}).request(), RequestType.GET, "json").c()
             return {
                 "server": request2,
                 "messages": request['messages']
@@ -76,7 +76,7 @@ class BotApplication():
     async def after_each_request(self):
         # check for new messages
         for u in self.watching_servers:
-            request = RequestHandler(Request("http://revolution.ericplayzyt.repl.co/api/v1/get_server_messages", "GET", headers={"id": u}).request(), RequestType.GET, "json").c()
+            request = RequestHandler(Request("http://revolution-web.repl.co/api/v1/get_server_messages", "GET", headers={"id": u}).request(), RequestType.GET, "json").c()
             #compare server messages
             server = self.server_storage.get(u)
             if server is None:
@@ -96,4 +96,4 @@ class BotApplication():
         return 0
 
     async def send_message(self, server, message):
-        return RequestHandler(Request("http://revolution.ericplayzyt.repl.co/api/v1/servers/send_message", "GET", headers={"id": server, "message": message, "sent_by": self.bot['name']}).request(), RequestType.GET, "json").c()
+        return RequestHandler(Request("http://revolution-web.repl.co/api/v1/servers/send_message", "GET", headers={"id": server, "message": message, "sent_by": self.bot['name']}).request(), RequestType.GET, "json").c()
