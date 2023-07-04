@@ -8,7 +8,7 @@ setup(
     author = "JustAnEric",
     maintainer = "Revolution Corporation",
     requires = ["requests"],
-    url = "https://revolution-web.repl.co/",
+    url = "https://revolution.ericplayzyt.repl.co/",
     packages = ["revolution"],
     keywords = ["revolutionpy", "python3", "revolution"],
     #include_dirs=["./revolution_py"]
