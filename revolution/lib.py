@@ -1,4 +1,4 @@
-import asyncio, logging, websockets, websocket
+import asyncio, logging, websockets, websocket, json, threading
 from .main import *
 
 class Color:
@@ -55,7 +55,19 @@ class BotApplication():
         try: self.WebSocket(self).register_function_for("websocket_open",self.events['ready'],True)
         except Exception as e: raise Exception(e)
 
-        self.wsClient.run_forever()
+        self.wst = threading.Thread(target=self.wsClient.run_forever)
+        #self.wst.daemon = True
+        self.wst.start()
+
+        conn_timeout = 5
+        while not self.wsClient.sock.connected and conn_timeout:
+            pass
+            conn_timeout -= 1
+
+        msg_counter = 0
+        while self.wsClient.sock.connected:
+            pass
+            msg_counter += 1
     
     class WebSocket:
         def __init__(self, self_obj):
@@ -68,9 +80,12 @@ class BotApplication():
                 if i['type'] == "websocket_open":
                     if (i['awaited']): asyncio.run(i['function']())
                     if i['awaited'] is None or i['awaited'] == False: i['function']()
-            self.main.wsClient.send({"type": "follow", "channels": self.main.watching_servers, "token": self.main.token})
+            print("latestfunction received: on_open")
+            ws.send(data='{"type": "follow", "channels": '+str(self.main.watching_servers).replace("'",'"')+', "token": "'+str(self.main.token)+'"}', opcode=websocket.ABNF.OPCODE_TEXT)
+            print("finished")
 
         def on_message(self,ws, message):
+            print("latestfunction received: on_message")
             print("Received message: {}".format(message))
             for i in self.functions:
                 if i['type'] == "websocket_message":
@@ -79,17 +94,12 @@ class BotApplication():
 
             obj = json.loads(message)
 
-            def check_(c):
-                if c.__name__ == "server_message":
-                    return True  
-
-                return False
-
             if (obj.get("type") == "messageCreate"):
                 try:
-                    events = filter(check_,self.events)
-                    for i in events:
-                        i(obj["channel"], {"message": obj['message'], "sent_by": obj['sent_by']})
+                    for i in self.main.events:
+                        if i == "server_message":
+                            loop = asyncio.new_event_loop()
+                            loop.run_until_complete(self.main.events[i](obj["channel"], {"message": obj['message'], "sent_by": obj['sent_by']}))
 
                 except Exception as e: print(f"${Color.WARNING}Error while running event:\n${e}${Color.ENDC}")
 
@@ -97,9 +107,9 @@ class BotApplication():
             print("[!] Closed websocket connection... Shutting down")
             for i in self.functions:
                 if i['type'] == "websocket_close":
-                    if (i['awaited']): asyncio.run(i['function'](23419))
-                    if i['awaited'] is None or i['awaited'] == False: i['function'](23419)
-            exit(23419) # websocket connection closed // exit code/signal
+                    if (i['awaited']): asyncio.run(i['function']())
+                    if i['awaited'] is None or i['awaited'] == False: i['function']()
+            #exit(23419) # websocket connection closed // exit code/signal
 
         def on_error(self,ws, error):
             print(f"[!] Error while processing websocket connection: {error}\nPlease contact anyone for help with this error code.")
@@ -111,25 +121,25 @@ class BotApplication():
         def register_function_for(self, type, function, awaited):
             if type == "websocket_open":
                 self.functions.append({
-                    "awaited": True,
+                    "awaited": awaited,
                     "function": function,
                     "type": "websocket_open",
                 })
             if type == "websocket_message":
                 self.functions.append({
-                    "awaited": True,
+                    "awaited": awaited,
                     "function": function,
                     "type": "websocket_message",
                 })
             if type == "websocket_close":
                 self.functions.append({
-                    "awaited": True,
+                    "awaited": awaited,
                     "function": function,
                     "type": "websocket_close",
                 })
             if type == "websocket_error":
                 self.functions.append({
-                    "awaited": True,
+                    "awaited": awaited,
                     "function": function,
                     "type": "websocket_error",
                 })
@@ -162,8 +172,16 @@ class BotApplication():
         if str(coro.__name__) == "server_message":
             self.events[coro.__name__] = coro
 
+    class websock:
+        def __init__(self,main):
+            self.main = main
+
+        def event(self):
+            """Provides a method for setting up a unique event that will execute on these occasions: the websocket closes, the websocket opens or the websocket has an error."""
+            return
+
     async def after_each_request(self):
-        
+        return
         """# check for new messages
         #for u in self.watching_servers:
             #request = RequestHandler(Request("http://revolution-web.repl.co/api/v1/get_server_messages", "GET", headers={"id": u}).request(), RequestType.GET, "json").c()
@@ -188,4 +206,4 @@ class BotApplication():
         
 
     async def send_message(self, server, message):
-        return RequestHandler(Request("http://revolution-web.repl.co/api/v1/servers/send_message", "GET", headers={"id": server, "message": message, "sent_by": self.bot['name']}).request(), RequestType.GET, "json").c()
+        return RequestHandler(Request("http://revolution-web.repl.co/api/v1/servers/send_message", "GET", headers={"id": server, "message": message, "sent-by": self.bot['name']}).request(), RequestType.GET, "json").c()
