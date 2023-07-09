@@ -1,4 +1,4 @@
-import asyncio, logging
+import asyncio, logging, websockets, websocket
 from .main import *
 
 class Color:
@@ -35,19 +35,108 @@ class BotApplication():
         self.bot = {
             "name": "Bot"
         }
-    async def run(self, token, in_server=""):
+    async def run(self, token, in_server=[]):
         self.token = token
         self.invoked = True
         self.watching_servers = in_server
+        #self.ws = await websocket.create_connection("wss://revolution-web.repl.co")
+        self.wsClient = websocket.WebSocketApp(
+            "wss://revolution-web.repl.co",
+            on_open=self.WebSocket(self).on_open,
+            on_message=self.WebSocket(self).on_message,
+            on_error=self.WebSocket(self).on_error,
+            on_close=self.WebSocket(self).on_close
+        )
+
         if token == None or token == "": return print(f"{Color.FAIL}revolution.bot.run.error{Color.ENDC}{Color.NORMAL_SPACE}{Color.WARNING}Bot cannot run: token has not been set correctly.{Color.ENDC}")
         request = RequestHandler(Request("http://revolution-web.repl.co/api/v1/python/token_exists", "GET", headers={"token": token}).request(), RequestType.GET, "json").c()
         if request['token_exists'] == "false": return print(f"{Color.FAIL}revolution.bot.run.error{Color.ENDC}{Color.NORMAL_SPACE}{Color.WARNING}Bot cannot run: token has not been set correctly. (NO TOKEN FOUND IN DB){Color.ENDC}")
         print(f"{Color.OKCYAN}revolution.bot.api{Color.ENDC}{Color.NORMAL_SPACE}   {Color.OKGREEN}Hosting bot to servers: {Color.ENDC}{Color.OKBLUE}{in_server}{Color.ENDC}")
-        try: await self.events['ready']()
-        except Exception as e: print(e)
-        pingrequest = PingRequest("https://revolution-web.repl.co/api/v1/python/ping_bot_online", RequestType.GET)
-        await pingrequest.request(0.5, self.after_each_request)
+        try: self.WebSocket(self).register_function_for("websocket_open",self.events['ready'],True)
+        except Exception as e: raise Exception(e)
+
+        self.wsClient.run_forever()
     
+    class WebSocket:
+        def __init__(self, self_obj):
+            self.functions = []
+            self.main = self_obj
+
+        def on_open(self,ws):
+            print("[!] Opening websocket connection...")
+            for i in self.functions:
+                if i['type'] == "websocket_open":
+                    if (i['awaited']): asyncio.run(i['function']())
+                    if i['awaited'] is None or i['awaited'] == False: i['function']()
+            self.main.wsClient.send({"type": "follow", "channels": self.main.watching_servers, "token": self.main.token})
+
+        def on_message(self,ws, message):
+            print("Received message: {}".format(message))
+            for i in self.functions:
+                if i['type'] == "websocket_message":
+                    if (i['awaited']): asyncio.run(i['function'](message))
+                    if i['awaited'] is None or i['awaited'] == False: i['function'](message)
+
+            obj = json.loads(message)
+
+            def check_(c):
+                if c.__name__ == "server_message":
+                    return True  
+
+                return False
+
+            if (obj.get("type") == "messageCreate"):
+                try:
+                    events = filter(check_,self.events)
+                    for i in events:
+                        i(obj["channel"], {"message": obj['message'], "sent_by": obj['sent_by']})
+
+                except Exception as e: print(f"${Color.WARNING}Error while running event:\n${e}${Color.ENDC}")
+
+        def on_close(self,ws,statuscode,statusmessage):
+            print("[!] Closed websocket connection... Shutting down")
+            for i in self.functions:
+                if i['type'] == "websocket_close":
+                    if (i['awaited']): asyncio.run(i['function'](23419))
+                    if i['awaited'] is None or i['awaited'] == False: i['function'](23419)
+            exit(23419) # websocket connection closed // exit code/signal
+
+        def on_error(self,ws, error):
+            print(f"[!] Error while processing websocket connection: {error}\nPlease contact anyone for help with this error code.")
+            for i in self.functions:
+                if i['type'] == "websocket_error":
+                    if (i['awaited']): asyncio.run(i['function'](error))
+                    if i['awaited'] is None or i['awaited'] == False: i['function'](error)
+        
+        def register_function_for(self, type, function, awaited):
+            if type == "websocket_open":
+                self.functions.append({
+                    "awaited": True,
+                    "function": function,
+                    "type": "websocket_open",
+                })
+            if type == "websocket_message":
+                self.functions.append({
+                    "awaited": True,
+                    "function": function,
+                    "type": "websocket_message",
+                })
+            if type == "websocket_close":
+                self.functions.append({
+                    "awaited": True,
+                    "function": function,
+                    "type": "websocket_close",
+                })
+            if type == "websocket_error":
+                self.functions.append({
+                    "awaited": True,
+                    "function": function,
+                    "type": "websocket_error",
+                })
+            return None
+
+            
+
     def get(self):
         return self.bot
     
@@ -74,26 +163,29 @@ class BotApplication():
             self.events[coro.__name__] = coro
 
     async def after_each_request(self):
-        # check for new messages
-        for u in self.watching_servers:
-            request = RequestHandler(Request("http://revolution-web.repl.co/api/v1/get_server_messages", "GET", headers={"id": u}).request(), RequestType.GET, "json").c()
+        
+        """# check for new messages
+        #for u in self.watching_servers:
+            #request = RequestHandler(Request("http://revolution-web.repl.co/api/v1/get_server_messages", "GET", headers={"id": u}).request(), RequestType.GET, "json").c()
             #compare server messages
-            server = self.server_storage.get(u)
-            if server is None:
-                self.server_storage[u] = {
-                    "server": {},
-                    "messages": request['messages']
-                }
-                return 
-            if server['messages'] == request['messages'] and request['messages'][-1]['sent_by'] == self.bot['name']:
-                pass
-            else: 
+            #server = self.server_storage.get(u)
+            #if server is None:
+                #self.server_storage[u] = {
+                    "server": #{},
+                    #"messages": request['messages']
+                #}
+                #return 
+            #if server['messages'] == request['messages'] and request['messages'][-1]['sent_by'] == self.bot['name']:
+                #pass
+            #else: 
                 #execute event and update
-                try: await self.events['server_message'](u, request['messages'][-1])
-                except Exception as e: print(e)
-                self.server_storage = {}
-                return 0
-        return 0
+                #try: await self.events['server_message'](u, request['messages'][-1])
+                #except Exception as e: print(e)
+                #self.server_storage = {}
+                #return 0
+        #return 0"""
+        
+        
 
     async def send_message(self, server, message):
         return RequestHandler(Request("http://revolution-web.repl.co/api/v1/servers/send_message", "GET", headers={"id": server, "message": message, "sent_by": self.bot['name']}).request(), RequestType.GET, "json").c()
