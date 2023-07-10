@@ -1,4 +1,4 @@
-import asyncio, logging, websockets, websocket, json, threading
+import asyncio, logging, websockets, websocket, json, threading, inspect, time, random
 from .main import *
 
 class Color:
@@ -13,6 +13,40 @@ class Color:
     UNDERLINE = '\033[4m'
     NORMAL_SPACE = "   "
 
+privateAccess = random.randint(0,204858968596849689785984892478475837583758748576930)
+relative_data = {}
+
+class upper_bot_config_class:
+    def __init__(self,*,key):
+        if privateAccess == key:
+            self.auth = True
+
+    def set(self,a,b):
+        if self.auth is None: return
+        if a and b:
+            relative_data[a]=b
+        else:return 0
+
+    def get(self,a):
+        if self.auth is None: return
+        if a:
+            return relative_data[a]
+        else:return 0
+
+    def delete(self,a,key):
+        if self.auth is None: return
+        if a and key == privateAccess:
+            del relative_data[a]
+        else:return 0
+
+    def __repr__(self) -> dict:
+        include = {
+            "set":self.set,
+            "get":self.get,
+            "delete":self.delete,
+        }
+        return include
+
 class commands:
     def __init__(self):
         pass
@@ -23,7 +57,57 @@ class commands:
         if request == "false":
             print(f"{Color.OKCYAN}revolution.bot.checks{Color.ENDC}{Color.NORMAL_SPACE}{Color.FAIL}You have no internet connection or your router or proxy is not allowing this site to be accessed. Please try again.{Color.ENDC}")
         if request == "true":
-            return BotApplication()
+            self.bot = BotApplication
+            upper_bot_config_class(key=privateAccess).__repr__()['set']("botApp", self.bot)
+            return self.bot()
+        
+    class Structure:
+        """This class is for creating easy and simple structures like bot commands. No extra stuff required."""
+        def __init__(self,*,prefix):
+            self.prefix = prefix
+            self.commands = {}
+            self.access = upper_bot_config_class(key=privateAccess).__repr__()
+            self.bot = self.access['get']("botApp")
+
+        def help_command(self):
+            def function(func):
+                func
+
+            return function
+
+        def command(self,*,name=None,description=None):
+            async def decor(s):
+                self.commands[(s.__name__ or str(name))] = {"description":description, "exec":s}
+                async def server_message(server,message):
+                    args = str(message['message'].split(f"{self.prefix}")[1]).split(' ',1)
+                    MESSAGE = self.Message
+                    MESSAGE.author = message['sent_by']
+                    MESSAGE.server = server
+                    MESSAGE.content = message['message']
+                    MESSAGE.channel = server.split('~')[1]
+                    return await s(MESSAGE,*args)
+
+            return decor
+
+        async def process_commands(self,bot,message,server):
+            args = str(message['message'].split(f"{self.prefix}")[1]).split(' ',1)
+            commandName = message['message'].split(f"{self.prefix}",1)[1].split(" ",1)[0]
+            MESSAGE = self.Message
+            MESSAGE.author = message['sent_by']
+            MESSAGE.server = server
+            MESSAGE.content = message['message']
+            MESSAGE.channel = server.split('~')[1]
+            for i in self.commands:
+                if i == commandName:
+                    return await self.commands[i]['exec'](MESSAGE,*args)
+            return None
+        
+        class Message:
+            content = None
+            server = None
+            channel = None
+            author = None
+            
 
 class BotApplication():
     def __init__(self):
@@ -31,28 +115,38 @@ class BotApplication():
         self.invoked = False
         self.watching_servers = []
         self.events = {}
+        self.relative_storage_class = upper_bot_config_class(key=privateAccess)
         self.server_storage = {}
         self.bot = {
             "name": "Bot"
         }
+        self.socketClass = self.WebSocket(self)
+        self.invokedSocket = 0
+        self.websocket_cfg = {}
+
     async def run(self, token, in_server=[]):
         self.token = token
         self.invoked = True
         self.watching_servers = in_server
         #self.ws = await websocket.create_connection("wss://revolution-web.repl.co")
-        self.wsClient = websocket.WebSocketApp(
-            "wss://revolution-web.repl.co",
-            on_open=self.WebSocket(self).on_open,
-            on_message=self.WebSocket(self).on_message,
-            on_error=self.WebSocket(self).on_error,
-            on_close=self.WebSocket(self).on_close
-        )
+        if self.websocket_cfg.get('connect_on_start') == True or self.websocket_cfg.get('connect_on_start') == None:
+            self.wsClient = websocket.WebSocketApp(
+                "wss://revolution-web.repl.co",
+                on_open=self.socketClass.on_open,
+                on_message=self.socketClass.on_message,
+                on_error=self.socketClass.on_error,
+                on_close=self.socketClass.on_close
+            )
+        else: print("You just have disabled an essential/required part of revolution.py, experience may be slow and we may throttle you. There are expected bugs too. If this was a mistake, initialise BotApplication().WebSocketConfig in BotApplication().setup")
 
         if token == None or token == "": return print(f"{Color.FAIL}revolution.bot.run.error{Color.ENDC}{Color.NORMAL_SPACE}{Color.WARNING}Bot cannot run: token has not been set correctly.{Color.ENDC}")
         request = RequestHandler(Request("http://revolution-web.repl.co/api/v1/python/token_exists", "GET", headers={"token": token}).request(), RequestType.GET, "json").c()
         if request['token_exists'] == "false": return print(f"{Color.FAIL}revolution.bot.run.error{Color.ENDC}{Color.NORMAL_SPACE}{Color.WARNING}Bot cannot run: token has not been set correctly. (NO TOKEN FOUND IN DB){Color.ENDC}")
         print(f"{Color.OKCYAN}revolution.bot.api{Color.ENDC}{Color.NORMAL_SPACE}   {Color.OKGREEN}Hosting bot to servers: {Color.ENDC}{Color.OKBLUE}{in_server}{Color.ENDC}")
-        try: self.WebSocket(self).register_function_for("websocket_open",self.events['ready'],True)
+        
+        try:
+            events_found = self._get_events__("ready")
+            await events_found().exec_pool()
         except Exception as e: raise Exception(e)
 
         self.wst = threading.Thread(target=self.wsClient.run_forever)
@@ -75,17 +169,19 @@ class BotApplication():
             self.main = self_obj
 
         def on_open(self,ws):
+            self.ws = ws
             print("[!] Opening websocket connection...")
             for i in self.functions:
                 if i['type'] == "websocket_open":
                     if (i['awaited']): asyncio.run(i['function']())
                     if i['awaited'] is None or i['awaited'] == False: i['function']()
-            print("latestfunction received: on_open")
-            ws.send(data='{"type": "follow", "channels": '+str(self.main.watching_servers).replace("'",'"')+', "token": "'+str(self.main.token)+'"}', opcode=websocket.ABNF.OPCODE_TEXT)
-            print("finished")
+            if self.main.websocket_cfg.get('follow_on_start') == True or self.main.websocket_cfg.get('follow_on_start') == None:
+                ws.send(data='{"type": "follow", "channels": '+str(self.main.watching_servers).replace("'",'"')+', "token": "'+str(self.main.token)+'"}', opcode=websocket.ABNF.OPCODE_TEXT)
+                print("[!] Opened and sent follow data")
+            self.main.invokedSocket = 1
 
         def on_message(self,ws, message):
-            print("latestfunction received: on_message")
+            self.ws = ws
             print("Received message: {}".format(message))
             for i in self.functions:
                 if i['type'] == "websocket_message":
@@ -96,14 +192,17 @@ class BotApplication():
 
             if (obj.get("type") == "messageCreate"):
                 try:
-                    for i in self.main.events:
-                        if i == "server_message":
-                            loop = asyncio.new_event_loop()
-                            loop.run_until_complete(self.main.events[i](obj["channel"], {"message": obj['message'], "sent_by": obj['sent_by']}))
+                    events_found = self.main._get_events__("server_message")()
+                    loop = asyncio.new_event_loop()
+                    loop.run_until_complete(
+                        #self.main.events[i](obj["channel"], {"message": obj['message'], "sent_by": obj['sent_by']})
+                        events_found.exec_pool(obj["channel"], {"message": obj['message'], "sent_by": obj['sent_by']})
+                    )
 
                 except Exception as e: print(f"${Color.WARNING}Error while running event:\n${e}${Color.ENDC}")
 
         def on_close(self,ws,statuscode,statusmessage):
+            self.ws = ws
             print("[!] Closed websocket connection... Shutting down")
             for i in self.functions:
                 if i['type'] == "websocket_close":
@@ -112,6 +211,7 @@ class BotApplication():
             #exit(23419) # websocket connection closed // exit code/signal
 
         def on_error(self,ws, error):
+            self.ws = ws
             print(f"[!] Error while processing websocket connection: {error}\nPlease contact anyone for help with this error code.")
             for i in self.functions:
                 if i['type'] == "websocket_error":
@@ -144,13 +244,47 @@ class BotApplication():
                     "type": "websocket_error",
                 })
             return None
+        
+    def _get_events__(self,name):
+        pool = []
+        class ExecutablePool:
+            def __init__(self):
+                self.pool = pool
+            def __repr__(self):
+                return self.pool
+            async def exec_pool(self, *args, **kwargs):
+                print(args)
+                print(kwargs)
+                for i in self.pool:
+                    await i(*args, **kwargs)
+        try:
+            for event in self.events:
+                if event == name:
+                    for execv in self.events[event]:
+                        pool.append(execv)
+            return ExecutablePool
+        except Exception as e: raise Exception(e)
 
+    class WebSocketConfig:
+        def __init__(self,*,FOLLOW_ON_START=True,CONNECT_ON_START=True):
+            self.config_stored = { "follow_on_start": FOLLOW_ON_START, "connect_on_start": CONNECT_ON_START }
+        
+        def __repr__(self):
+            return self.config_stored
             
+        def remove_all_traces(self):
+            """Removes config data if necessary || if `WebSocketConfig` is stored to a variable."""
+            self.config_stored = {"removed": "yes"}
+        
+        def store_trace_to_global_var(self,bot):
+            if self.config_stored == {"removed": "yes"} or self.config_stored == {} or self.config_stored == None:
+                raise BaseException("!![TRACES] No config to store.")
+            bot.websocket_cfg = self.config_stored
 
     def get(self):
         return self.bot
     
-    def setup(self, name):
+    def setup(self,*, name,websocket_cfg=WebSocketConfig):
         if self.invoked:
             return print(f"{Color.FAIL}revolution.bot.before_invoke.error{Color.ENDC}{Color.NORMAL_SPACE}{Color.WARNING}{Color.ENDC}")
         self.bot['name'] = name
@@ -168,17 +302,41 @@ class BotApplication():
     def event(self, coro):
         print(coro.__name__)
         if str(coro.__name__) == "ready":
-            self.events[coro.__name__] = coro
+            if self.events.get('ready') == None:
+                self.events['ready'] = []
+            self.events['ready'].append(coro)
         if str(coro.__name__) == "server_message":
-            self.events[coro.__name__] = coro
+            if self.events.get('server_message') == None:
+                self.events['server_message'] = []
+            self.events['server_message'].append(coro)
+        print(self.events)
 
-    class websock:
+    class websock(WebSocket):
         def __init__(self,main):
-            self.main = main
+            self.s = main
 
-        def event(self):
-            """Provides a method for setting up a unique event that will execute on these occasions: the websocket closes, the websocket opens or the websocket has an error."""
-            return
+        def event(self,*,event_type:str=str):
+            """
+            Provides a method for setting up a unique event that will execute on these occasions: the websocket closes, the websocket opens or the websocket has an error.
+            (External method that connects to the main method and registers functions)
+            """
+
+            def register_child(function):
+                self.s.socketClass.register_function_for(event_type, function, inspect.iscoroutinefunction(function))
+                print(f"[!] Registered websock event: {event_type.split('websocket_')[1]}")
+
+            return register_child
+        
+        async def send_follow_data(self,*,code:int=int):
+            socketClass = self.s.socketClass
+            """[!] Sends the server follow data in case it was changed during the run."""
+            if socketClass.ws:
+                wait = await self.s.wait_until(somepredicate=lambda: self.s.invokedSocket,timeout=10,value_meant_to_be=1)
+                socketClass.ws.send(data='{"type": "resetfollowlist", "token": "'+str(self.s.token)+'"}')
+                socketClass.ws.send(data='{"type": "follow", "channels": '+str(self.s.watching_servers).replace("'",'"')+', "token": "'+str(self.s.token)+'"}', opcode=websocket.ABNF.OPCODE_TEXT)
+                print("[!!] Opened and sent follow data")
+            else: return print("[!!!] Follow data could not be sent, server is not active or websocket service is experiencing some issues.")
+            
 
     async def after_each_request(self):
         return
@@ -203,7 +361,12 @@ class BotApplication():
                 #return 0
         #return 0"""
         
-        
+    async def wait_until(self, somepredicate, timeout, period=0.25, value_meant_to_be=True, *args, **kwargs):
+        mustend = time.time() + timeout
+        while time.time() < mustend:
+            if somepredicate == value_meant_to_be: return True
+            time.sleep(period)
+        return False
 
     async def send_message(self, server, message):
         return RequestHandler(Request("http://revolution-web.repl.co/api/v1/servers/send_message", "GET", headers={"id": server, "message": message, "sent-by": self.bot['name']}).request(), RequestType.GET, "json").c()
