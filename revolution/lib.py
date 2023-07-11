@@ -107,7 +107,80 @@ class commands:
             server = None
             channel = None
             author = None
-            
+
+        class Server:
+            def __init__(data, bot):
+                def mapping_channels(a):
+                    return Channel(a,data,self.bot)
+                def mapping_roles(a):
+                    return Role(a,a,self.bot)
+                def mapping_members(a):
+                    return Member(a,self.bot)
+                    
+                self.bot = bot
+                self.data = data
+                
+                self.name = data['name']
+                self.id = data['serverid']
+                self.abbr = data['abbr']
+                self.abbreviation = data['abbr']
+                self.icon = data['imgurl']
+                self.color = data['color']
+                self.channels = map(mapping_channels, data['channels'])
+                self.roles = map(mapping_roles, data['roles'])
+                self.emojis = {"error": "Not available."}
+                self.emotes = {"error": "Not available."}
+                self.members = map(mapping_members, data['users_chatted'])
+                self.partial = False
+
+        class PartialServer:
+            def __init__(self, id, bot):
+                self.id = id
+                self.bot = bot
+                self.partial = True
+
+            async def fetch(self):
+                sendReq = RequestHandler(Request("https://revolution-web.repl.co/api/v1/get_server", "GET", headers={"id":self.id}).request(), RequestType.GET, "json").c()
+                self.bot.cache[self.id] = sendReq
+                return Server(sendReq, self.bot)
+
+        class Member:
+            def __init__(self,name,bot):
+                self.bot = bot
+                self.name = name
+
+            def send(self, content):
+                return print("Ignoring a usual exception: \n    [!! COMMANDS FRAMEWORK !!] Sending Direct Messages to server members is not enabled right now.")
+
+        class Role:
+            def __init__(self, id, name, bot):
+                self.id = id
+                self.bot = bot
+                self.name = name
+
+        class Channel:
+            def __init__(self, name, parentData, bot):
+                self.bot = bot
+                self.id = name
+                self.name = name.split('~')[0]
+                self.parentData = parentData
+                self.partial_parent = PartialServer(self.name,bot)
+                self.parent = Server(parentData,bot)
+
+            async def fetch(self):
+                """
+                [?] **Fetches channel messages** and returns them in a map() object.
+                """
+                def mapping_messages(a):
+                    endRes = Message()
+                    endRes.content = a['message']
+                    endRes.server = self.name
+                    endRes.channel = self.name.split('~')[1]
+                    endRes.author = a['sent_by']
+                    return endRes
+                sendRw = RequestHandler(Request(f"https://revolution-web.repl.co/get_new_messages/s/{self.id}", "GET", headers={"id":self.id}).request(), RequestType.GET, "json").c()
+                return map(mapping_messages, self.parentData)
+                
 
 class BotApplication():
     def __init__(self):
