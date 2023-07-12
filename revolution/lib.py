@@ -442,4 +442,4 @@ class BotApplication():
         return False
 
     async def send_message(self, server, message):
-        return RequestHandler(Request("http://revolution-web.repl.co/api/v1/servers/send_message", "GET", headers={"id": server, "message": message, "sent-by": self.bot['name']}).request(), RequestType.GET, "json").c()
+        return RequestHandler(Request("http://revolution-web.repl.co/api/v1/servers/send_message", "GET", headers={"id": server, "message": message, "sent-by": self.bot['name'], "token": self.token}).request(), RequestType.GET, "json").c()
