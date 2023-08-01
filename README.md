@@ -41,3 +41,7 @@ development_builds.initialize(app)
 ...
 ```
 This should initialize and download the new code.
+
+## Commands Structure Documentation
+The commands structure class documentation is available on the Revolution website:
+[https://revolution-web.repl.co/api/docs/py](https://revolution-web.repl.co/api/docs/py)
