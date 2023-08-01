@@ -30,3 +30,14 @@ asyncio.get_event_loop().run_until_complete(
     )
 ) # insert your token and guild id to invoke the bot to. The bot will not be given editing permissions unless the owner of the server gives it permission.
 ```
+
+## Install the development build of Revolution.py
+If you want to test out new features, you can download the latest release and extract the ZIP into your `site-packages` folder.
+If you cannot do this, add this line of code into your main file before running the bot:
+```python
+...
+from revolutionpy import development_builds
+development_builds.initialize(app)
+...
+```
+This should initialize and download the new code.
