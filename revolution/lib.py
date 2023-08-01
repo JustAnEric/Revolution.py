@@ -93,10 +93,19 @@ class commands:
             args = str(message['message'].split(f"{self.prefix}")[1]).split(' ',1)
             commandName = message['message'].split(f"{self.prefix}",1)[1].split(" ",1)[0]
             MESSAGE = self.Message
-            MESSAGE.author = message['sent_by']
-            MESSAGE.server = server
+            sendReq = RequestHandler(Request("https://revolution-web.repl.co/api/v1/get_server", "GET", headers={"id":server}).request(), RequestType.GET, "json").c()
+            MESSAGE.author_id = message['author_id']
+            MESSAGE.author = self.Member(message['sent_by'], MESSAGE.author_id, (message['bot'] or False))
+            MESSAGE.server_id = server
+            MESSAGE.server = self.Server(sendReq, bot)
             MESSAGE.content = message['message']
-            MESSAGE.channel = server.split('~')[1]
+            MESSAGE.channel = self.Channel(server.split('~')[1], sendReq, bot)
+            MESSAGE.channel_id = server.split('~')[1]
+            MESSAGE.message_id = message['id']
+            MESSAGE.id = message['id']
+            MESSAGE.timestamp = message['timestamp']
+            MESSAGE.bot = (message['bot'] or False)
+            MESSAGE.staff = (message['staff'] or False)
             for i in self.commands:
                 if i == commandName:
                     return await self.commands[i]['exec'](MESSAGE,*args)
@@ -105,17 +114,25 @@ class commands:
         class Message:
             content = None
             server = None
+            server_id = None
             channel = None
             author = None
+            author_id = None
+            message_id = None
+            channel_id = None
+            id = None
+            timestamp = None
+            bot = None
+            staff = None
 
         class Server:
-            def __init__(data, bot):
+            def __init__(self, data, bot):
                 def mapping_channels(a):
-                    return Channel(a,data,self.bot)
+                    return commands.Structure.Channel(a,data,self.bot)
                 def mapping_roles(a):
-                    return Role(a,a,self.bot)
+                    return commands.Structure.Role(a,a,self.bot)
                 def mapping_members(a):
-                    return Member(a,self.bot)
+                    return commands.Structure.Member(a,a['id'],self.bot)
                     
                 self.bot = bot
                 self.data = data
@@ -142,12 +159,13 @@ class commands:
             async def fetch(self):
                 sendReq = RequestHandler(Request("https://revolution-web.repl.co/api/v1/get_server", "GET", headers={"id":self.id}).request(), RequestType.GET, "json").c()
                 self.bot.cache[self.id] = sendReq
-                return Server(sendReq, self.bot)
+                return commands.Structure.Server(sendReq, self.bot)
 
         class Member:
-            def __init__(self,name,bot):
+            def __init__(self, name, id, bot):
                 self.bot = bot
                 self.name = name
+                self.id = id
 
             def send(self, content):
                 return print("Ignoring a usual exception: \n    [!! COMMANDS FRAMEWORK !!] Sending Direct Messages to server members is not enabled right now.")
@@ -164,19 +182,25 @@ class commands:
                 self.id = name
                 self.name = name.split('~')[0]
                 self.parentData = parentData
-                self.partial_parent = PartialServer(self.name,bot)
-                self.parent = Server(parentData,bot)
+                self.partial_parent = commands.Structure.PartialServer(self.name,bot)
+                self.parent = commands.Structure.Server(parentData,bot)
 
             async def fetch(self):
                 """
                 [?] **Fetches channel messages** and returns them in a map() object.
                 """
                 def mapping_messages(a):
-                    endRes = Message()
+                    endRes = commands.Structure.Message()
                     endRes.content = a['message']
-                    endRes.server = self.name
-                    endRes.channel = self.name.split('~')[1]
-                    endRes.author = a['sent_by']
+                    endRes.server = commands.Structure.Server(self.parentData)
+                    endRes.server_id = self.name
+                    endRes.channel_id = self.name.split('~')[1]
+                    endRes.channel = commands.Structure.Channel(self.name.split('~')[1], self.parentData, self.bot)
+                    endRes.bot = (a['bot'] or False)
+                    endRes.staff = (a['staff'] or False)
+                    endRes.author_id = a['author_id']
+                    endRes.author = commands.Structure.Member(a['sent_by'], endRes.author_id, self.bot)
+                    endRes.timestamp = a['timestamp']
                     return endRes
                 sendRw = RequestHandler(Request(f"https://revolution-web.repl.co/get_new_messages/s/{self.id}", "GET", headers={"id":self.id}).request(), RequestType.GET, "json").c()
                 return map(mapping_messages, self.parentData)
