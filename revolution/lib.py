@@ -63,11 +63,11 @@ class commands:
         
     class Structure:
         """This class is for creating easy and simple structures like bot commands. No extra stuff required."""
-        def __init__(self,*,prefix):
+        def __init__(self,bot,*,prefix):
             self.prefix = prefix
             self.commands = {}
             self.access = upper_bot_config_class(key=privateAccess).__repr__()
-            self.bot = self.access['get']("botApp")
+            self.bot = bot
 
         def help_command(self):
             def function(func):
