@@ -1,4 +1,4 @@
-import asyncio, logging, websockets, websocket, json, threading, inspect, time, random
+import asyncio, logging, websockets, websocket, json, threading, inspect, time, random, traceback
 from .main import *
 
 class Color:
@@ -58,7 +58,6 @@ class commands:
             print(f"{Color.OKCYAN}revolution.bot.checks{Color.ENDC}{Color.NORMAL_SPACE}{Color.FAIL}You have no internet connection or your router or proxy is not allowing this site to be accessed. Please try again.{Color.ENDC}")
         if request == "true":
             self.bot = BotApplication
-            upper_bot_config_class(key=privateAccess).__repr__()['set']("botApp", self.bot)
             return self.bot()
         
     class Structure:
@@ -93,9 +92,9 @@ class commands:
             args = str(message['message'].split(f"{self.prefix}")[1]).split(' ',1)
             commandName = message['message'].split(f"{self.prefix}",1)[1].split(" ",1)[0]
             MESSAGE = self.Message
-            sendReq = RequestHandler(Request("https://revolution-web.repl.co/api/v1/get_server", "GET", headers={"id":server}).request(), RequestType.GET, "json").c()
+            sendReq = RequestHandler(Request("https://revolution-web.repl.co/api/v1/get_server", "GET", headers={"id":server.split('~')[0]}).request(), RequestType.GET, "json").c()
             MESSAGE.author_id = message['author_id']
-            MESSAGE.author = self.Member(message['sent_by'], MESSAGE.author_id, (message['bot'] or False))
+            MESSAGE.author = self.Member(message['sent_by'], MESSAGE.author_id, (message.get('bot') or False))
             MESSAGE.server_id = server
             MESSAGE.server = self.Server(sendReq, bot)
             MESSAGE.content = message['message']
@@ -104,8 +103,8 @@ class commands:
             MESSAGE.message_id = message['id']
             MESSAGE.id = message['id']
             MESSAGE.timestamp = message['timestamp']
-            MESSAGE.bot = (message['bot'] or False)
-            MESSAGE.staff = (message['staff'] or False)
+            MESSAGE.bot = (message.get('bot') or False)
+            MESSAGE.staff = (message.get('staff') or False)
             for i in self.commands:
                 if i == commandName:
                     return await self.commands[i]['exec'](MESSAGE,*args)
@@ -196,8 +195,8 @@ class commands:
                     endRes.server_id = self.name
                     endRes.channel_id = self.name.split('~')[1]
                     endRes.channel = commands.Structure.Channel(self.name.split('~')[1], self.parentData, self.bot)
-                    endRes.bot = (a['bot'] or False)
-                    endRes.staff = (a['staff'] or False)
+                    endRes.bot = (a.get('bot') or False)
+                    endRes.staff = (a.get('staff') or False)
                     endRes.author_id = a['author_id']
                     endRes.author = commands.Structure.Member(a['sent_by'], endRes.author_id, self.bot)
                     endRes.timestamp = a['timestamp']
@@ -279,7 +278,7 @@ class BotApplication():
 
         def on_message(self,ws, message):
             self.ws = ws
-            print("Received message: {}".format(message))
+            #print("Received message: {}".format(message))
             for i in self.functions:
                 if i['type'] == "websocket_message":
                     if (i['awaited']): asyncio.run(i['function'](message))
@@ -293,10 +292,10 @@ class BotApplication():
                     loop = asyncio.new_event_loop()
                     loop.run_until_complete(
                         #self.main.events[i](obj["channel"], {"message": obj['message'], "sent_by": obj['sent_by']})
-                        events_found.exec_pool(obj["channel"], {"message": obj['message'], "sent_by": obj['sent_by']})
+                        events_found.exec_pool(obj["channel"], obj)
                     )
 
-                except Exception as e: print(f"${Color.WARNING}Error while running event:\n${e}${Color.ENDC}")
+                except Exception as e: print(f"${Color.WARNING}Error while running event:\n${e}${Color.ENDC}"); traceback.print_exc()
 
         def on_close(self,ws,statuscode,statusmessage):
             self.ws = ws
@@ -381,10 +380,11 @@ class BotApplication():
     def get(self):
         return self.bot
     
-    def setup(self,*, name,websocket_cfg=WebSocketConfig):
+    def setup(self,*, websocket_cfg=WebSocketConfig):
         if self.invoked:
             return print(f"{Color.FAIL}revolution.bot.before_invoke.error{Color.ENDC}{Color.NORMAL_SPACE}{Color.WARNING}{Color.ENDC}")
-        self.bot['name'] = name
+        self.websocket_cfg = websocket_cfg
+        
 
     def get_server(self, id):
         if id not in self.watching_servers: return print(f"{id} SERVER IS NOT BEING WATCHED! ADD IT TO THE WATCH LIST.")
@@ -406,7 +406,6 @@ class BotApplication():
             if self.events.get('server_message') == None:
                 self.events['server_message'] = []
             self.events['server_message'].append(coro)
-        print(self.events)
 
     class websock(WebSocket):
         def __init__(self,main):
@@ -466,4 +465,4 @@ class BotApplication():
         return False
 
     async def send_message(self, server, message):
-        return RequestHandler(Request("http://revolution-web.repl.co/api/v1/servers/send_message", "GET", headers={"id": server, "message": message, "sent-by": self.bot['name'], "token": self.token}).request(), RequestType.GET, "json").c()
+        return RequestHandler(Request("http://revolution-web.repl.co/api/v1/servers/send_message", "GET", headers={"id": server, "message": message, "sent-by": "", "token": self.token}).request(), RequestType.GET, "json").c()
