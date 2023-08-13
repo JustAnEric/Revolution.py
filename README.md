@@ -1,6 +1,15 @@
 # Revolution.py
 This is a Python fork of the working Revolution API.
 
+## REQUIREMENTS
+- aiohttp
+- requests
+- websockets
+> If these are **not prompted to automatically install,** you will have to install them yourself using the command below.
+```sh
+pip install aiohttp websockets requests
+```
+
 ## USAGE
 
 ```python
