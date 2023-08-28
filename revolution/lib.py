@@ -77,52 +77,112 @@ class commands:
         def command(self,*,name=None,description=None):
             async def decor(s):
                 self.commands[(s.__name__ or str(name))] = {"description":description, "exec":s}
-                async def server_message(server,message):
+                async def server_message(server:str,message:dict):
                     args = str(message['message'].split(f"{self.prefix}")[1]).split(' ',1)
-                    MESSAGE = self.Message
-                    MESSAGE.author = message['sent_by']
-                    MESSAGE.server = server
-                    MESSAGE.content = message['message']
-                    MESSAGE.channel = server.split('~')[1]
+                    sendReq = RequestHandler(Request("https://revolution-web.repl.co/api/v1/get_server", "GET", headers={"id":server.split('~')[0]}).request(), RequestType.GET, "json").c()
+                    MESSAGE = self.Message(
+                        message['message'], 
+                        self.Server(sendReq, self.bot), 
+                        server, 
+                        self.Channel(server.split('~')[1], sendReq, self.bot), 
+                        self.Member(message['sent_by'], message['author_id'], (message.get('bot') or False)),
+                        message['author_id'],
+                        message['id'],
+                        server.split('~')[1],
+                        message['id'],
+                        message['timestamp'],
+                        (message.get('bot') or False), 
+                        (message.get('staff') or False),
+                        self.bot
+                    )
+                    #MESSAGE.author = message['sent_by']
+                    #MESSAGE.server = server
+                    #MESSAGE.content = message['message']
+                    #MESSAGE.channel = server.split('~')[1]
                     return await s(MESSAGE,*args)
 
             return decor
 
-        async def process_commands(self,bot,message,server):
+        async def process_commands(self,message:dict,server:str):
             args = str(message['message'].split(f"{self.prefix}")[1]).split(' ',1)
             commandName = message['message'].split(f"{self.prefix}",1)[1].split(" ",1)[0]
-            MESSAGE = self.Message
+            MESSAGE = self.Message(
+                message['message'], 
+                self.Server(sendReq, self.bot), 
+                server, 
+                self.Channel(server.split('~')[1], sendReq, self.bot), 
+                self.Member(
+                    message['sent_by'], 
+                    message['author_id'], 
+                    (message.get('bot') or False),
+                    (message.get('staff') or False)
+                ), 
+                message['author_id'], 
+                message['id'], 
+                server.split('~')[1], 
+                message['id'], 
+                message['timestamp'], 
+                (message.get('bot') or False), 
+                (message.get('staff') or False),
+                self.bot
+            )
             sendReq = RequestHandler(Request("https://revolution-web.repl.co/api/v1/get_server", "GET", headers={"id":server.split('~')[0]}).request(), RequestType.GET, "json").c()
-            MESSAGE.author_id = message['author_id']
-            MESSAGE.author = self.Member(message['sent_by'], MESSAGE.author_id, (message.get('bot') or False))
-            MESSAGE.server_id = server
-            MESSAGE.server = self.Server(sendReq, bot)
-            MESSAGE.content = message['message']
-            MESSAGE.channel = self.Channel(server.split('~')[1], sendReq, bot)
-            MESSAGE.channel_id = server.split('~')[1]
-            MESSAGE.message_id = message['id']
-            MESSAGE.id = message['id']
-            MESSAGE.timestamp = message['timestamp']
-            MESSAGE.bot = (message.get('bot') or False)
-            MESSAGE.staff = (message.get('staff') or False)
+            #MESSAGE.author_id = message['author_id']
+            #MESSAGE.author = self.Member(message['sent_by'], MESSAGE.author_id, (message.get('bot') or False))
+            #MESSAGE.server_id = server
+            #MESSAGE.server = self.Server(sendReq, bot)
+            #MESSAGE.content = message['message']
+            #MESSAGE.channel = self.Channel(server.split('~')[1], sendReq, bot)
+            #MESSAGE.channel_id = server.split('~')[1]
+            #MESSAGE.message_id = message['id']
+            #MESSAGE.id = message['id']
+            #MESSAGE.timestamp = message['timestamp']
+            #MESSAGE.bot = (message.get('bot') or False)
+            #MESSAGE.staff = (message.get('staff') or False)
             for i in self.commands:
                 if i == commandName:
                     return await self.commands[i]['exec'](MESSAGE,*args)
             return None
         
         class Message:
-            content = None
-            server = None
-            server_id = None
-            channel = None
-            author = None
-            author_id = None
-            message_id = None
-            channel_id = None
-            id = None
-            timestamp = None
-            bot = None
-            staff = None
+            def __init__(self, content, server, server_id, channel, author, author_id, message_id, channel_id, id, timestamp, bot, staff, botApp):
+                self.content = content
+                self.server = server
+                self.server_id = server_id
+                self.channel = channel
+                self.author = author
+                self.author_id = author_id
+                self.message_id = message_id
+                self.channel_id = channel_id
+                self.id = id
+                self.timestamp = timestamp
+                self.bot = bot
+                self.staff = staff
+                self.botApp = botApp
+            
+            async def send(self, message):
+                message = RequestHandler(Request("http://revolution-web.repl.co/api/v1/servers/send_message", "GET", headers={"id": self.server_id, "message": self.content, "token": self.botApp.token}).request(), RequestType.GET, "json").c()
+                obj = commands.Structure.Message(
+                    message['message'], 
+                    self.server, 
+                    self.server_id, 
+                    self.channel, 
+                    commands.Structure.Member(
+                        message['sent_by'], 
+                        message['author_id'], 
+                        (message.get('bot') or False),
+                        (message.get('staff') or False)
+                    ),
+                    message['author_id'],
+                    message['id'],
+                    self.channel_id,
+                    message['id'],
+                    message['timestamp'],
+                    (message.get('bot') or False), 
+                    (message.get('staff') or False),
+                    self.bot
+                )
+                return obj
 
         class Server:
             def __init__(self, data, bot):
@@ -161,10 +221,11 @@ class commands:
                 return commands.Structure.Server(sendReq, self.bot)
 
         class Member:
-            def __init__(self, name, id, bot):
+            def __init__(self, name, id, bot, staff):
                 self.bot = bot
                 self.name = name
                 self.id = id
+                self.staff = staff
 
             def send(self, content):
                 return print("Ignoring a usual exception: \n    [!! COMMANDS FRAMEWORK !!] Sending Direct Messages to server members is not enabled right now.")
