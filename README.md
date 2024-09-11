@@ -1,6 +1,9 @@
 # Revolution.py
 This is a Python fork of the working Revolution API.
 
+# IMPORTANT: 
+> :warning: This Revolution.py fork does ***NOT*** apply to the new and improved Revolution version.
+
 ## REQUIREMENTS
 - aiohttp
 - requests
